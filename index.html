@@ -1,0 +1,383 @@
+<!doctype html>
+<html lang="en" data-theme="crimson" data-mode="light">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>OpsCore — by Opserv</title>
+<link rel="stylesheet" href="styles.css?v=4" />
+</head>
+<body>
+
+<div id="loginOverlay" role="dialog" aria-modal="true" aria-labelledby="loginTitle">
+  <div class="card" style="width: 360px; padding: 32px 24px;">
+    <div style="text-align:center;margin-bottom:24px;">
+      <div class="dot" style="display:inline-block;width:14px;height:14px;border-radius:50%;background:var(--grad);box-shadow:0 0 0 4px var(--accent-soft);margin-bottom:12px;"></div>
+      <h2 id="loginTitle" style="font-size:20px;">OpsCore Authentication</h2>
+      <p class="muted" style="font-size:13px;margin-top:4px;">Enter credentials to access matrix data.</p>
+    </div>
+    <form id="loginForm" class="stack" autocomplete="on" method="post" action="#" novalidate>
+      <input type="hidden" name="website" value="opscore" />
+      <div class="field">
+        <label for="loginUser">Username</label>
+        <input class="input" id="loginUser" name="username" type="text" autocomplete="username" required placeholder="Enter Firebase API Key" />
+      </div>
+      <div class="field">
+        <label for="loginPass">Password</label>
+        <input class="input" id="loginPass" name="password" type="password" autocomplete="current-password" required placeholder="Enter Team Token" />
+      </div>
+      <button class="btn primary" type="submit" style="width:100%;padding:12px;margin-top:8px;">Access Portal</button>
+      <div id="loginErr" style="color:var(--red);font-size:13px;text-align:center;display:none;font-weight:500;">Invalid credentials.</div>
+    </form>
+  </div>
+</div>
+
+<div class="topbar">
+  <div class="topbar-inner">
+    <div class="brand"><span class="dot"></span> OpsCore <span class="muted" style="font-weight:400">· BI Console</span></div>
+    <div class="tabs" role="tablist">
+      <button class="tab active" data-tab="matrix" role="tab">Integration</button>
+      <button class="tab" data-tab="analyzer" role="tab">PubScore</button>
+      <button class="tab" data-tab="linkgenie" role="tab">Link Genie</button>
+    </div>
+    <div class="spacer"></div>
+    <div class="theme-switch" title="Color theme">
+      <button class="swatch" data-theme-preset="crimson" aria-label="Crimson"></button>
+      <button class="swatch" data-theme-preset="indigo" aria-label="Indigo"></button>
+      <button class="swatch" data-theme-preset="emerald" aria-label="Emerald"></button>
+      <button class="swatch" data-theme-preset="amber" aria-label="Amber"></button>
+      <button class="swatch" data-theme-preset="slate" aria-label="Slate"></button>
+      <button class="mode-toggle btn sm" id="modeToggle" title="Toggle light/dark">🌙</button>
+    </div>
+    <span id="syncPill" class="pill off"><span class="led"></span><span id="syncPillText">Local mode</span></span>
+    <button class="btn sm" id="logoutBtn">Log Out</button>
+  </div>
+</div>
+
+<main>
+
+<!-- ============ INTEGRATION TAB ============ -->
+<section id="tab-matrix" class="grid grid-2">
+  <div class="stack">
+    <div class="card">
+      <div class="card-head"><h2>App IDs</h2><span class="muted" style="margin-left:auto" id="appsCount">0</span></div>
+      <div class="card-body">
+        <form id="addAppForm" class="stack" autocomplete="off" style="gap:8px">
+          <div class="row">
+            <input class="input" id="appInput" placeholder="App ID (e.g. com.brand.app)" required />
+            <input class="input" id="appVertical" placeholder="Vertical (e.g. Gaming)" required style="max-width:160px" />
+          </div>
+          <div class="row">
+            <input class="input" id="appName" placeholder="App Name (optional, e.g. Acme Runner)" />
+            <button class="btn primary" type="submit" style="max-width:120px">Add App</button>
+          </div>
+        </form>
+        <div class="hsplit" style="margin-top:8px">
+          <button class="btn sm" type="button" id="appSelAll">Select all</button>
+          <button class="btn sm" type="button" id="appDeselAll">Deselect all</button>
+          <span class="spacer"></span>
+          <span class="muted" style="font-size:12px">App ID + Vertical required</span>
+        </div>
+        <ul id="appList" class="asset-list" style="margin-top:10px"></ul>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-head"><h2>Partner IDs (PIDs)</h2><span class="muted" style="margin-left:auto" id="pidsCount">0</span></div>
+      <div class="card-body">
+        <form id="addPidForm" class="stack" autocomplete="off" style="gap:8px">
+          <div class="row">
+            <input class="input" id="pidInput" placeholder="PID (e.g. tiktokglobal_int)" required />
+            <button class="btn primary" type="submit" style="max-width:120px">Add PID</button>
+          </div>
+          <input class="input" id="pidPubs" placeholder="Publisher names (optional, comma-separated)" />
+        </form>
+        <div class="hsplit" style="margin-top:8px">
+          <button class="btn sm" type="button" id="pidSelAll">Select all</button>
+          <button class="btn sm" type="button" id="pidDeselAll">Deselect all</button>
+          <span class="spacer"></span>
+          <span class="muted" style="font-size:12px">One PID can map to many publishers</span>
+        </div>
+        <ul id="pidList" class="asset-list" style="margin-top:10px"></ul>
+      </div>
+    </div>
+  </div>
+  <div class="stack">
+    <div class="banner info">
+      <div><strong>Heads up.</strong> Disable pop-up blockers for <span class="mono">hq1.appsflyer.com</span> — the launcher opens one tab per pair.</div>
+    </div>
+    <div class="card">
+      <div class="card-head">
+        <h2>Cross-Tab Launch Matrix</h2>
+        <span class="muted" style="margin-left:auto" id="matrixCount">0 pairs selected</span>
+      </div>
+      <div class="card-body">
+        <div id="matrixGrid" class="muted">Add and select App IDs and PIDs to build a launch matrix.</div>
+      </div>
+      <div class="card-foot">
+        <button class="btn primary" id="launchBtn">Launch Selected Matrix Cross-Tabs</button>
+        <button class="btn" id="clearSelBtn">Clear Selections</button>
+        <span class="spacer"></span>
+        <button class="btn danger" id="purgeIntegrationBtn">Purge Integration</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ PUBSCORE TAB ============ -->
+<section id="tab-analyzer" class="hidden">
+  <div class="stack">
+
+    <div class="card">
+      <div class="card-head">
+        <h2>Filter PubScore Ledger</h2>
+        <span class="muted" style="margin-left:auto">real-time</span>
+      </div>
+      <div class="card-body">
+        <div class="filter-grid">
+          <div class="field"><label>Search Publisher / PID</label><input class="input" id="flt_q" type="search" placeholder="acme, tiktok…" /></div>
+          <div class="field"><label>Vertical</label><select class="select input" id="flt_vertical"><option value="">All</option></select></div>
+          <div class="field"><label>Min C2I %</label><input class="input" id="flt_c2i" type="number" min="0" step="0.1" placeholder="0" /></div>
+          <div class="field"><label>Max Fraud %</label><input class="input" id="flt_fraud" type="number" min="0" step="0.1" placeholder="100" /></div>
+          <div class="field"><label>Min Revenue $</label><input class="input" id="flt_rev" type="number" min="0" step="1" placeholder="0" /></div>
+          <div class="field"><label>Min ROAS %</label><input class="input" id="flt_roas" type="number" min="0" step="1" placeholder="0" /></div>
+          <div class="field" style="justify-content:flex-end"><label>&nbsp;</label><button class="btn" id="flt_clear" type="button">Clear Filters</button></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head">
+        <h2>PubScore Ledger</h2>
+        <span class="muted" style="margin-left:auto"><span id="ledgerCount">0</span> publishers</span>
+      </div>
+      <div class="card-body" style="padding:0">
+        <div class="table-wrap" style="border:0;border-radius:0">
+          <table id="ledgerTable">
+            <thead>
+              <tr>
+                <th>Publisher</th><th>PubScore</th><th>C2I</th><th>I2E</th><th>Fraud</th>
+                <th>Revenue / Cost</th><th>ROAS</th><th>Tier</th><th></th>
+              </tr>
+            </thead>
+            <tbody id="ledgerBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head">
+        <h2>Top Publishers</h2>
+        <span class="muted" style="margin-left:auto">leaderboard</span>
+      </div>
+      <div class="card-body">
+        <div class="weights-grid">
+          <div class="field">
+            <label>Metric</label>
+            <select class="select input" id="top_metric">
+              <option value="revenue">Revenue (highest)</option>
+              <option value="score">PubScore (highest)</option>
+              <option value="fraud">Fraud (lowest)</option>
+              <option value="roas">ROAS (highest)</option>
+              <option value="c2i">C2I (highest)</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Vertical</label>
+            <select class="select input" id="top_vertical"><option value="">All verticals</option></select>
+          </div>
+          <div class="field">
+            <label>Count</label>
+            <select class="select input" id="top_count"><option value="5">Top 5</option><option value="10">Top 10</option></select>
+          </div>
+        </div>
+        <div class="table-wrap" style="margin-top:10px">
+          <table>
+            <thead><tr><th>#</th><th>Publisher</th><th>Vertical</th><th id="topMetricCol">Value</th><th>Score</th></tr></thead>
+            <tbody id="topPubsBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head">
+        <h2>Data Utilities</h2>
+        <span class="muted" style="margin-left:auto">CSV backup pipeline</span>
+      </div>
+      <div class="card-body">
+        <div class="hsplit" style="margin-bottom:10px">
+          <button class="btn" id="exportCsv">Export CSV</button>
+          <button class="btn" id="importBtn">Import CSV</button>
+          <button class="btn" id="downloadTpl">Download Template</button>
+          <input type="file" id="importFile" accept=".csv,text/csv" hidden />
+          <span class="spacer"></span>
+          <button class="btn danger" id="purgeBtn">Purge Ledger</button>
+        </div>
+        <div id="drop" class="drop">Drop a <span class="mono">.csv</span> here to import — or click <em>Import CSV</em>.</div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Settings cog (PubScore only) -->
+  <button class="cog" id="settingsCog" title="Settings: New Entry · Weights">⚙</button>
+</section>
+
+<!-- ============ LINK GENIE TAB ============ -->
+<section id="tab-linkgenie" class="hidden">
+  <div class="lg-tabs">
+    <button class="tab active" data-lgtab="builder">Builder</button>
+    <button class="tab" data-lgtab="history">History</button>
+    <span class="spacer"></span>
+    <span class="muted" id="lgCount" style="font-size:12px">0 saved</span>
+  </div>
+
+  <div id="lg-builder" class="lg-pane">
+    <div class="card">
+      <div class="card-body">
+        <div class="field">
+          <label>Link Preview <span class="muted" style="font-weight:400">(paste a tracking link to parse, or edit live)</span></label>
+          <div class="link-preview" id="linkPreview" contenteditable="true" spellcheck="false"></div>
+          <div class="hsplit" style="margin-top:6px;justify-content:flex-end">
+            <button class="btn sm" id="resetBtn">Reset to Sample</button>
+            <button class="btn sm primary" id="copyLinkBtn">Copy Link</button>
+          </div>
+        </div>
+
+        <div class="row" style="margin-top:6px">
+          <div class="field">
+            <label>Link Type</label>
+            <div class="seg" id="linkTypeToggle">
+              <button class="seg-btn active" data-type="CTA">CTA</button>
+              <button class="seg-btn" data-type="VTA">VTA</button>
+              <button class="seg-btn" data-type="OneLink">OneLink</button>
+            </div>
+          </div>
+          <div class="field">
+            <label>App ID</label>
+            <input class="input" id="appTrackerId" data-combo="app" placeholder="com.example.app" />
+          </div>
+        </div>
+
+        <div class="row" id="oneLinkFields" style="display:none">
+          <div class="field"><label>Subdomain</label><input class="input" id="subdomain" placeholder="yourcompany" /></div>
+          <div class="field"><label>Template ID</label><input class="input" id="templateId" placeholder="abcd1234" /></div>
+        </div>
+
+        <div class="field" style="margin-top:8px">
+          <div class="hsplit"><label style="margin:0">Parameters</label><span class="spacer"></span><button class="btn sm primary" id="addParamBtn">+ Add Parameter</button></div>
+          <div class="param-head"><div></div><div>Key</div><div>Value</div><div></div></div>
+          <div id="parametersList" class="param-list"></div>
+        </div>
+
+        <div class="row" style="margin-top:8px">
+          <div class="field"><label>Link ID</label><input class="input" id="linkName" placeholder="My Awesome Campaign" /></div>
+          <div class="field" style="justify-content:flex-end"><label>&nbsp;</label><button class="btn primary" id="saveBtn">Save Link</button></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="lg-history" class="lg-pane hidden">
+    <div class="card">
+      <div class="card-body">
+        <div class="row">
+          <input class="input" id="searchLinks" placeholder="Search saved links…" />
+          <button class="btn danger" id="clearHistoryBtn" style="max-width:140px">Clear All</button>
+        </div>
+        <div id="linksHistory" style="margin-top:10px"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<!-- ============ SETTINGS DRAWER (PubScore) ============ -->
+<div id="drawerOverlay" class="drawer-overlay hidden"></div>
+<aside id="settingsDrawer" class="drawer hidden" aria-hidden="true">
+  <div class="drawer-head">
+    <h2>Settings</h2>
+    <button class="btn sm" id="drawerClose" aria-label="Close">✕</button>
+  </div>
+  <div class="drawer-body">
+
+    <details open class="drawer-sec">
+      <summary><h3>New Performance Entry</h3></summary>
+      <form id="entryForm" autocomplete="off" class="stack" style="gap:8px;margin-top:10px">
+        <div class="row">
+          <div class="field"><label>Publisher Name</label><input class="input" id="f_pub" required placeholder="e.g. Acme Media" /></div>
+          <div class="field"><label>PID</label><input class="input" id="f_pid" data-combo="pid" required placeholder="Type or pick PID…" /></div>
+        </div>
+        <div class="row">
+          <div class="field"><label>App ID <span style="color:var(--accent)">*</span></label><input class="input" id="f_app" data-combo="app" required placeholder="Type or pick App ID…" /></div>
+          <div class="field"><label>Vertical (auto)</label><input class="input" id="f_vertical" readonly placeholder="—" /></div>
+        </div>
+        <div id="f_newAppPanel" class="hidden inline-create">
+          <div class="row">
+            <input class="input" id="f_newAppName" placeholder="Optional App Name (e.g. Acme Runner)" />
+            <input class="input" id="f_newAppVert" placeholder="Vertical *" />
+            <button class="btn primary sm" type="button" id="f_newAppCreate">Create App</button>
+          </div>
+          <p class="muted" style="font-size:11.5px;margin:6px 0 0">This App ID isn't in your library yet — fill the vertical to create it (App Name optional).</p>
+        </div>
+        <div id="f_newPidPanel" class="hidden inline-create">
+          <div class="row">
+            <input class="input" id="f_newPidPubs" placeholder="Optional Publisher name(s), comma-separated" />
+            <button class="btn primary sm" type="button" id="f_newPidCreate">Create PID</button>
+          </div>
+          <p class="muted" style="font-size:11.5px;margin:6px 0 0">New PID — adding publisher names is optional.</p>
+        </div>
+        <div class="row">
+          <div class="field"><label>Clicks</label><input class="input" id="f_clicks" type="number" min="0" required value="0" /></div>
+          <div class="field"><label>Installs</label><input class="input" id="f_installs" type="number" min="0" required value="0" /></div>
+        </div>
+        <div class="row">
+          <div class="field"><label>Events</label><input class="input" id="f_events" type="number" min="0" required value="0" /></div>
+          <div class="field"><label>Fraud Installs</label><input class="input" id="f_finstalls" type="number" min="0" required value="0" /></div>
+        </div>
+        <div class="row">
+          <div class="field"><label>Fraud Events</label><input class="input" id="f_fevents" type="number" min="0" required value="0" /></div>
+          <div class="field"><label>Revenue (USD)</label><input class="input" id="f_revenue" type="number" min="0" step="0.01" required value="0" /></div>
+        </div>
+        <div class="row">
+          <div class="field"><label>Cost (USD, optional)</label><input class="input" id="f_cost" type="number" min="0" step="0.01" placeholder="—" /></div>
+          <div class="field"></div>
+        </div>
+        <div class="hsplit">
+          <button class="btn primary" type="submit">Add to PubScore Ledger</button>
+          <button class="btn" type="reset">Reset</button>
+          <span class="spacer"></span>
+          <span class="muted" style="font-size:12px"><span id="ctxApps">0</span> apps · <span id="ctxPids">0</span> PIDs</span>
+        </div>
+      </form>
+    </details>
+
+    <details class="drawer-sec">
+      <summary><h3>Scoring Weights</h3></summary>
+      <p class="muted" style="margin:10px 0 12px">Every publisher starts at <span class="mono" id="w_base_display">50</span> points.</p>
+      <div class="weights-grid">
+        <div class="field"><label>Base score</label><input class="input wt" id="w_base" type="number" value="50"/></div>
+        <div class="field"><label>+pts: ROAS &gt; 150%</label><input class="input wt" id="w_roas_hi" type="number" value="30"/></div>
+        <div class="field"><label>+pts: ROAS &gt; 100%</label><input class="input wt" id="w_roas_md" type="number" value="15"/></div>
+        <div class="field"><label>+pts: Revenue &gt; $5,000</label><input class="input wt" id="w_rev_hi" type="number" value="20"/></div>
+        <div class="field"><label>+pts: Revenue &gt; $1,000</label><input class="input wt" id="w_rev_md" type="number" value="10"/></div>
+        <div class="field"><label>+pts: C2I &gt; 2%</label><input class="input wt" id="w_c2i_hi" type="number" value="20"/></div>
+        <div class="field"><label>+pts: C2I &gt; 1%</label><input class="input wt" id="w_c2i_md" type="number" value="10"/></div>
+        <div class="field"><label>−pts: Fraud &gt; 20%</label><input class="input wt" id="w_fraud_hi" type="number" value="40"/></div>
+        <div class="field"><label>−pts: Fraud &gt; 10%</label><input class="input wt" id="w_fraud_md" type="number" value="15"/></div>
+      </div>
+      <div class="hsplit" style="margin-top:8px">
+        <button class="btn sm" id="weightsReset">Reset Defaults</button>
+        <span class="muted" style="margin-left:auto;font-size:12px">Saved locally</span>
+      </div>
+    </details>
+
+  </div>
+</aside>
+
+<div id="toast" class="toast"></div>
+
+<script type="module" src="app.js?v=4"></script>
+</body>
+</html>
